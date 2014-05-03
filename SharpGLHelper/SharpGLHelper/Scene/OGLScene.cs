@@ -20,7 +20,6 @@ using SharpGLHelper.Shaders;
 using System.Threading.Tasks;
 using System.Threading;
 using SharpGL.Version;
-using SharpGLHelper.Shaders.Parameters;
 using SharpGLHelper.ModelComponents;
 using SharpGLHelper.SceneElements;
 using SharpGLHelper.Common;
@@ -36,7 +35,7 @@ namespace SharpGLHelper.Scene
         ModelView _modelView = new ModelView();
         Normal _normal = new Normal();
         Projection _projection = new Projection();
-        ExtShaderProgram _currentShader;
+        ShaderManagerBase _currentShader;
         float _performanceScaleValue = 1f;
         Size _sceneSize;
         Size _viewPortSize;
@@ -71,7 +70,7 @@ namespace SharpGLHelper.Scene
         /// <summary>
         /// The shader that's currently being used for rendering the models.
         /// </summary>
-        public ExtShaderProgram CurrentShader
+        public ShaderManagerBase CurrentShader
         {
             get { return _currentShader; }
             set { _currentShader = value; }
@@ -131,7 +130,7 @@ namespace SharpGLHelper.Scene
         /// Should be called before the first Draw-call is being made. Sets the GL and shader.
         /// </summary>
         /// <param name="gl"></param>
-        public virtual void OpenGLInitialized(OpenGL gl, ExtShaderProgram shader)
+        public virtual void OpenGLInitialized(OpenGL gl, ShaderManagerBase shader)
         {
             OpenGLInitialized(gl);
             CurrentShader = shader;
@@ -165,6 +164,8 @@ namespace SharpGLHelper.Scene
         /// <param name="p">The 2D point relative to the OpenGL viewport.</param>
         public void GetModelAtPoint(Point p, IEnumerable<ElementAndTransformation> models, HitTestMethod method = HitTestMethod.OpenGLHack)
         {
+            return; //TODO!!
+
             if (p != null && models != null && models.Count() > 0)
             {
                 Point correctedPoint = new Point((int)(p.X * _performanceScaleValue), (int)(p.Y * _performanceScaleValue));
@@ -224,6 +225,8 @@ namespace SharpGLHelper.Scene
         public static int GetModelAtPointHack(Point point, IEnumerable<ElementAndTransformation> models, 
             int[] viewport, ModelView modelview, Projection projection, Normal normal, float performanceScaleValue = 1)
         {
+            return -1; // TODO
+
             int id = -1;
 
             int width = (int)(viewport[2] * performanceScaleValue);
@@ -253,67 +256,69 @@ namespace SharpGLHelper.Scene
             #endregion create a temperory gl to prevent flickering
 
             // Initialize the shader for our new GL.
-            var esp = Shaders.LoadSimpleShader(gl);
-            var idxModelTransformation = new List<Tuple<int, int>>(); // Item1 = idx in models; Item2 = idx of model.Transformations
+            //var esp = Shaders.LoadSimpleShader(gl);
+            //var idxModelTransformation = new List<Tuple<int, int>>(); // Item1 = idx in models; Item2 = idx of model.Transformations
 
-            esp.UseProgram(gl, () =>
-            {
-                // Set the matrices.
-                esp.ApplyMVPNMatrices(gl, modelview, projection, normal);
+            //var buffersToBeRemoved = new List<uint>();
 
-                var curModelId = 0;
+            //esp.UseProgram(gl, () =>
+            //{
+            //    // Set the matrices.
+            //    esp.ApplyMVPNMatrices(gl, modelview, projection, normal);
 
-                // render models, using a temperory color
+            //    var curModelId = 0;
 
-                for (int i = 0; i < models.Count(); )
-                {
-                    var model = models.ElementAt(i);
+            //    // render models, using a temperory color
+            //    for (int i = 0; i < models.Count(); )
+            //    {
+            //        var model = models.ElementAt(i);
 
-                    // Extract the color. Since we don't need the i in this loop anymore, we can use it to set the color.
-                    i++; // We don't want to use 0 for the color, so we increment it already. ( = black)
-                    var col = new ColorF(Convert.ToUInt32(i)); ;
-                    esp.ApplyMaterial(gl, new Material() { Ambient = col });
+            //        // Extract the color. Since we don't need the i in this loop anymore, we can use it to set the color.
+            //        i++; // We don't want to use 0 for the color, so we increment it already. ( = black)
+            //        var col = new ColorF(Convert.ToUInt32(i*20));
+            //        esp.ApplyMaterial(gl, new Material() { Ambient = col });
 
-                    // Use the transformation in the model, else use the identity matrix (I do this to override previous transformations)
-                    if (model.Transformation != null)
-                        esp.ApplyTransformationMatrix(gl, model.Transformation.ResultMatrix);
-                    else
-                        esp.ApplyTransformationMatrix(gl, mat4.identity());
+            //        // Use the transformation in the model, else use the identity matrix (I do this to override previous transformations)
+            //        if (model.Transformation != null)
+            //            esp.ApplyTransformationMatrix(gl, model.Transformation.ResultMatrix);
+            //        else
+            //            esp.ApplyTransformationMatrix(gl, mat4.identity());
 
-                    OGLVisualSceneElementBase.GenerateAndDrawOnce(gl, (OGLVisualSceneElementBase)model.SceneElement); // model.Render(gl, RenderMode.HitTest);
-                        
-                }
-            });
-            esp.Dispose();
+            //        var createdBuffers = OGLVisualSceneElementBase.GenerateAndDrawOnce(gl, (OGLVisualSceneElementBase)model.SceneElement); // model.Render(gl, RenderMode.HitTest);
+            //        buffersToBeRemoved.AddRange(createdBuffers);
+            //    }
+            //});
+            //esp.Dispose();
 
-            // Wait for GPU to finish.
-            gl.Flush();
-            gl.Finish();
+            //// Wait for GPU to finish.
+            //gl.Flush();
+            //gl.Finish();
 
+            //gl.PixelStore(OpenGL.GL_UNPACK_ALIGNMENT, 1);
 
-            gl.PixelStore(OpenGL.GL_UNPACK_ALIGNMENT, 1);
+            //uint format = OpenGL.GL_RGBA;
+            //uint type = OpenGL.GL_UNSIGNED_BYTE;
 
-            uint format = OpenGL.GL_RGBA;
-            uint type = OpenGL.GL_UNSIGNED_BYTE;
+            //byte[] data = new byte[40];
+            //gl.ReadPixels(x, y, 1, 1, format, type, data);
 
-            byte[] data = new byte[40];
-            gl.ReadPixels(x, y, 1, 1, format, type, data);
+            //// Delete the created buffers.
+            //gl.DeleteBuffers(buffersToBeRemoved.Count, buffersToBeRemoved.ToArray());
 
+            //// Remove the temperory gl from memory.
+            //gl.RenderContextProvider.Dispose();
 
-            // Remove the temperory gl from memory.
-            gl.RenderContextProvider.Dispose();
+            //// Get color id from pixel data.
+            //id = data[0] + data[1] * 255 + data[2] * 65025; // id = r + g * 255 + b * 255².
 
-            // Get color id from pixel data.
-            id = data[0] + data[1] * 255 + data[2] * 65025; // id = r + g * 255 + b * 255².
+            //// if the pixel is black, then there was nothing selected.
+            //if (id == 0)
+            //{
+            //    return -1;
+            //}
 
-            // if the pixel is black, then there was nothing selected.
-            if (id == 0)
-            {
-                return -1;
-            }
-
-            // Return the index of the model and the used transformation.
-            return id - 1;
+            //// Return the index of the model and the used transformation.
+            //return id - 1;
         }
         #endregion HitTest
     }

@@ -33,10 +33,10 @@ namespace SharpGLHelper.Shaders.ParameterAppliers
                 p.SetUniform3(gl, prms.DiffuseId, diff.R, diff.G, diff.B);
             if (prms.SpecularId != null && spec != null)
                 p.SetUniform3(gl, prms.SpecularId, spec.R, spec.G, spec.B);
-            if (prms.ShininessId != null)
-                p.SetUniform1(gl, prms.ShininessId, shini);
             if (prms.EmissionId != null && emit != null)
                 p.SetUniform3(gl, prms.EmissionId, emit.R, emit.G, emit.B);
+            if (prms.ShininessId != null)
+                p.SetUniform1(gl, prms.ShininessId, shini);
         }
 
         public static void ApplyMVPNParameter(OpenGL gl, ExtShaderProgram esp, Projection pr, ModelView mv, Normal nrml)
@@ -70,6 +70,31 @@ namespace SharpGLHelper.Shaders.ParameterAppliers
             // Set the transformation matrix.
             if (prms.TransformationMatrixId != null)
                 p.SetUniformMatrix4(gl, prms.TransformationMatrixId, m.to_array());
+        }
+
+        public static void ApplyTransArrayParameters(OpenGL gl, ExtShaderProgram esp, mat4[] mats)
+        {
+            var prms = esp.Parameters as ITransformableParameters;
+            var p = esp.Program;
+
+
+
+            // Set the transformation matrix.
+            if (prms.TransformationMatrixId != null)
+            {
+                var m = new float[mats.Length][];
+
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    var mat = mats[i];
+                    m[i] = new float[16];
+                    m[i] = mat.to_array();
+                }
+
+                throw new NotImplementedException();
+                //p.set
+                //p.SetUniformMatrix4(gl, prms.TransformationMatrixId, m);
+            }
         }
     }
 }

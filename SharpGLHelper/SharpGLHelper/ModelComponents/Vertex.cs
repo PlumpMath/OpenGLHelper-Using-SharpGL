@@ -1,5 +1,4 @@
 ﻿using GlmNet;
-using SharpGLHelper.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,20 +6,33 @@ using System.Text;
 
 namespace SharpGLHelper.ModelComponents
 {
-    public class Vertex
+    public class Vertex : IEquatable<Vertex>
     {
         #region fields
-        ushort? _index = null;
-        List<Face> _parentFaces = new List<Face>();
+        ObservableLinkedSet<Edge> _edges = new ObservableLinkedSet<Edge>();
+        uint? _index = null;
         vec3 _vertex;
         vec3 _normal;
         #endregion fields
 
         #region properties
         /// <summary>
+        /// The edges that use this vertex.
+        /// </summary>
+        public ObservableLinkedSet<Edge> Edges
+        {
+            get { return _edges; }
+            set
+            {
+                if (value != null)
+                    _edges = value;
+                else _edges.Clear();
+            }
+        }
+        /// <summary>
         /// The index (= null if not set).
         /// </summary>
-        public ushort? Index
+        public uint? Index
         {
             get { return _index; }
             set { _index = value; }
@@ -41,33 +53,56 @@ namespace SharpGLHelper.ModelComponents
             get { return _vertex; }
             set { _vertex = value; }
         }
-        /// <summary>
-        /// The faces that make use of this vertex.
-        /// </summary>
-        public List<Face> ParentFaces
-        {
-            get { return _parentFaces; }
-            set { _parentFaces = value; }
-        }
         #endregion properties
 
-        /// <summary>
-        /// Default constructor.
-        /// </summary>
-        public Vertex() { }
-
-        /// <summary>
-        /// A constructor which simple sets the index, normal and vertex.
-        /// </summary>
-        /// <param name="index">The index.</param>
-        /// <param name="normal">The normal.</param>
-        /// <param name="vertex">The vertex.</param>
-        public Vertex(ushort index, vec3 vertex, vec3 normal)
+        #region constructors
+        public Vertex(uint? idx = null, vec3 normal = new vec3())
         {
-            _index = index;
-            _normal = normal;
-            _vertex = vertex;
+            Index = idx;
+            Normal = normal;
         }
+
+        public Vertex(vec4 v, uint? idx = null, vec3 normal = new vec3())
+            : this(new vec3(v.x, v.y, v.z),idx, normal)
+        {
+        }
+
+        public Vertex(vec3 v, uint? idx = null, vec3 normal = new vec3())
+            : this(idx, normal)
+        {
+            Vec3 = v;
+        }
+
+        public Vertex(float x, float y, float z, uint? idx = null, vec3 normal = new vec3())
+            : this(new vec3(x, y, z), idx, normal) { }
+        public Vertex(float x, float y, float z, float w, uint? idx = null, vec3 normal = new vec3())
+            : this(new vec4(x, y, z, w), idx, normal) { }
+
+
+        public static Vertex[] GenerateFrom(IEnumerable<vec4> vertices)
+        {
+            var newVerts = new Vertex[vertices.Count()];
+
+            for (int i = 0; i < vertices.Count(); i++)
+            {
+                newVerts[i] = new Vertex(vertices.ElementAt(i));
+            }
+
+            return newVerts;
+        }
+        public static Vertex[] GenerateFrom(IEnumerable<vec3> vertices)
+        {
+            var newVerts = new Vertex[vertices.Count()];
+
+            for (int i = 0; i < vertices.Count(); i++)
+            {
+                newVerts[i] = new Vertex(vertices.ElementAt(i));
+            }
+
+            return newVerts;
+        }
+        #endregion constructors
+
 
         /// <summary>
         /// Calculates the vertex normal. (= the normalized sum of all of its parents their face normals.)
@@ -75,7 +110,10 @@ namespace SharpGLHelper.ModelComponents
         public void CalculateVertexNormal()
         {
             vec3 normalSum = new vec3();
-            foreach (var plane in _parentFaces)
+
+            var faces = GetParentFaces();
+
+            foreach (var plane in faces)
             {
                 normalSum += plane.Normal;
             }
@@ -83,9 +121,30 @@ namespace SharpGLHelper.ModelComponents
             Normal = glm.normalize(normalSum);
         }
 
-        public override string ToString()
+        public IEnumerable<Face> GetParentFaces()
         {
-            return _vertex.ToValueString();
+            var faces = new HashSet<Face>();
+
+            foreach (var edge in Edges)
+            {
+                foreach (var face in edge.Faces)
+                {
+                    faces.Add(face);
+                }
+            }
+
+            return faces;
+        }
+
+
+        public bool Equals(Vertex other)
+        {
+        //    if (Index != null)
+        //        return Index == other.Index;
+
+            vec3 vx = this.Vec3,
+                vy = other.Vec3;
+            return vx.x == vy.x && vx.y == vy.y && vx.z == vy.z;
         }
     }
 }

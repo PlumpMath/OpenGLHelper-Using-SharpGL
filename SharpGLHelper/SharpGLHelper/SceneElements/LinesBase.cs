@@ -88,12 +88,11 @@ namespace SharpGLHelper.SceneElements
 
         #endregion properties
 
-        public LinesBase(OpenGL gl, List<Tuple<vec3, vec3>> lines, Material material = null)
+        public LinesBase(OpenGL gl, List<Tuple<vec3, vec3>> lines, Material material = null, OGLModelUsage usage = OGLModelUsage.StaticRead)
         {
-            
             var verts = new vec3[lines.Count * 2];
             var normals = new vec3[lines.Count * 2];
-            var indices = new ushort[lines.Count * 2];
+            var indices = new uint[lines.Count * 2];
 
             for (int i = 0; i < lines.Count; i++)
             {
@@ -104,8 +103,8 @@ namespace SharpGLHelper.SceneElements
                 normals[i2] = new vec3(1, 1, 1);
                 normals[i2 + 1] = new vec3(1, 1, 1);
 
-                indices[i2] = (ushort)i2;
-                indices[i2 + 1] = (ushort)(i2 + 1);
+                indices[i2] = (uint)i2;
+                indices[i2 + 1] = (uint)(i2 + 1);
             }
 
             if (material != null)
@@ -118,7 +117,7 @@ namespace SharpGLHelper.SceneElements
 
 
             if (gl != null)
-                GenerateGeometry(gl, OGLModelUsage.StaticRead);
+                GenerateGeometry(gl, usage);
         }
 
         /// <summary>
@@ -147,20 +146,17 @@ namespace SharpGLHelper.SceneElements
         //    _openGL.BufferData(OpenGL.GL_ARRAY_BUFFER, Normals.SelectMany(v => v.to_array()).ToArray(), (uint)usage);
         //}
 
-        public override void Render(OpenGL gl, RenderMode renderMode, Shaders.ExtShaderProgram shader = null)
-        {
+        //public override void Render(OpenGL gl, Shaders.ShaderManagerBase shader = null)
+        //{
+        //    // Sets the linewidth.
+        //    gl.LineWidth(LineWidth);
 
-            // Binds buffers.
-            Bind();
+        //    // Binds buffers.
+        //    Bind();
 
-            // Sets the linewidth.
-            gl.LineWidth(LineWidth);
-            // Draw the elements.
-            gl.DrawArrays(GlDrawMode, 0, Vertices.Length);
-            //gl.DrawElements(GlDrawMode, Indices.Length, OpenGL.GL_UNSIGNED_SHORT, IntPtr.Zero);
-
-            //gl.PopAttrib();
-        }
+        //    // Draw the elements.
+        //    gl.DrawArrays(GlDrawMode, 0, (int)VerticesCount);
+        //}
 
 
 

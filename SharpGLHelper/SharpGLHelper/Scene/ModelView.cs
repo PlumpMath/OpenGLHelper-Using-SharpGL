@@ -14,6 +14,8 @@ namespace SharpGLHelper.Scene
     /// </summary>
     public enum CameraRotationSequence { SRT, TRS }
     public enum RotationMethod { TurnTableYZ, TurnTableXZ, TurnTableXY, TrackBall, Simple }
+
+
     /// <summary>
     /// This class contains all functionality related to the ModelView matrix.
     /// </summary>

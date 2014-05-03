@@ -1,5 +1,4 @@
 ﻿using GlmNet;
-using SharpGLHelper.Common;
 using SharpGLHelper.Events;
 using System;
 using System.Collections.Generic;
@@ -8,240 +7,272 @@ using System.Text;
 
 namespace SharpGLHelper.ModelComponents
 {
-    public enum TriangulationMethod {Strip, Fan, Delaunay }
     public class Mesh
     {
-        #region events
-        public event MeshPixelsChangedEvent MeshPixelsChanged;
-        public void OnMeshPixelsChangedEvent()
-        {
-            if (MeshPixelsChanged != null)
-                MeshPixelsChanged(this, new MeshPixelsChangedEventArgs());
-        }
-        #endregion events
-
         #region fields
-        Face[] _faces;
-        vec3[] _baseVertices, _vec3Vertices, _normals;
-        ushort[] _indices;
-        Vertex[] _vertices;
-        Dictionary<uint, Vertex> _idxForVertex;
+        ObservableLinkedList<Vertex> _vertices = new ObservableLinkedList<Vertex>(); // all verts
+        ObservableLinkedList<Edge> _edges = new ObservableLinkedList<Edge>(); // all edges
+        ObservableLinkedList<Face> _faces = new ObservableLinkedList<Face>(); // all faces
         #endregion fields
 
         #region properties
-        /// <summary>
-        /// The faces of the mesh.
-        /// </summary>
-        public Face[] Faces
-        {
-            get { return _faces; }
-            set { _faces = value; }
-        }
-        /// <summary>
-        /// The raw vec3 vertex data.
-        /// </summary>
-        public vec3[] Vec3Vertices
-        {
-            get { return _vec3Vertices; }
-            set 
-            {
-                _vec3Vertices = value;
-                UpdateFaceVertices();
-            }
-        }
-        /// <summary>
-        /// Each Vertex that's being used for building the faces of the mesh.
-        /// </summary>
-        public Vertex[] Vertices
+        public vec3[] VerticesVec3 { get; private set; }
+        public vec3[] Normals { get; private set; }
+        public uint[] Indices { get; private set; }
+        public ObservableLinkedList<Vertex> Vertices
         {
             get { return _vertices; }
             set { _vertices = value; }
         }
 
-        public vec3[] Normals
+        public ObservableLinkedList<Edge> Edges
         {
-            get { return _normals; }
-            set { _normals = value; }
+            get { return _edges; }
+            set { _edges = value; }
         }
-        public ushort[] Indices
+
+        public ObservableLinkedList<Face> Faces
         {
-            get { return _indices; }
-            set { _indices = value; }
+            get { return _faces; }
+            set 
+            {
+                if (value == null)
+                    _faces.Clear();
+                else _faces = value; 
+            }
         }
         #endregion properties
 
+        #region events
+        public MeshChangedEvent MeshChanged;
+
+        private void OnMeshChanged()
+        {
+            if (MeshChanged != null)
+                MeshChanged(this, new MeshChangedEventArgs());
+        }
+        #endregion events
+
         #region constructors
-        /// <summary>
-        /// Default constructor.
-        /// </summary>
-        public Mesh()
+        public Mesh(IEnumerable<Face> faces)
         {
+            Faces.CollectionChanged += Faces_CollectionChanged;
+            Faces.AddLast(faces);
 
+            AddEdgesAndVerticesFrom(Faces);
         }
 
         /// <summary>
-        /// Sets the faces
+        /// Converts the data to a Face[] and creates- and returns a Mesh from these faces. 
+        /// You can only use this method for one face type, e.g. triangles/quads/...
         /// </summary>
-        /// <param name="faces">The faces.</param>
-        public Mesh(Face[] faces, bool calculate)
-        {
-            _faces = faces;
-        }
-
-        /// <summary>
-        /// Sets the Indices, Vec3Vertices and Normals. Also prepares for manipulation by virtually building each face.
-        /// If normals are null, these will be automatically generated.
-        /// </summary>
-        /// <param name="indices">The indices.</param>
         /// <param name="vertices">The vertices.</param>
-        /// <param name="normals">The normals.</param>
-        public Mesh(ushort[] indices, vec3[] vertices, vec3[] normals, bool autoFillFaces = true)
+        /// <param name="indices">The indices</param>
+        /// <param name="normals">The Normals</param>
+        /// <param name="verticesPerFace">The amount of vertices that each face has.</param>
+        /// <param name="removeUnusedVertices">If there are any vertices that aren't being used in the indices array, remove them.</param>
+        /// <returns>The mesh that was created from this data.</returns>
+        public static Mesh BuildMesh(vec4[] vertices, uint[] indices, vec3[] normals, byte verticesPerFace = 3, bool removeUnusedVertices = false)
         {
-            _indices = indices;
-            _normals = normals;
-            _vec3Vertices = vertices;
-            _baseVertices = vertices;
-
-            if (autoFillFaces)
-                CreateFaces();
-
-            if (_normals == null)
-            {
-                CalculateNormals();
-            }
+            return new Mesh(Face.GenerateFrom(vertices, indices, normals, verticesPerFace, removeUnusedVertices));
         }
-
+        public static Mesh BuildMesh(vec3[] vertices, uint[] indices, vec3[] normals, byte verticesPerFace = 3, bool removeUnusedVertices = false)
+        {
+            return new Mesh(Face.GenerateFrom(vertices, indices, normals, verticesPerFace, removeUnusedVertices));
+        }
         #endregion constructors
 
-        /// <summary>
-        /// Fills Face[] using the available Vec3Vertices and Indices.
-        /// </summary>
-        public void CreateFaces()
+        void Faces_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            var n = 3;
-            var faces = new List<Face>();
-            _idxForVertex = new Dictionary<uint, Vertex>();
-            _vertices = new Vertex[_vec3Vertices.Length];
+            var newFaces = new List<Face>();
 
-            #region getVertex(...) function
-            Func<ushort, Vertex> getVertex = idx =>
+            foreach (Face face in e.NewItems)
+	        {
+                newFaces.Add(face);
+                face.Mesh = this;
+	        }
+
+            AddEdgesAndVerticesFrom(newFaces);
+            OnMeshChanged();
+        }
+
+        private void AddEdgesAndVerticesFrom(IEnumerable<Face> faces)
+        {
+            var verticesSet = new HashSet<Vertex>();
+            foreach (var face in faces)
             {
-                if (_idxForVertex.ContainsKey(idx))
+                Edges.AddLast(face.Edges);
+                foreach (var edge in face.Edges)
                 {
-                    return _idxForVertex[idx];
+                    verticesSet.Add(edge.Vertex1);
+                    verticesSet.Add(edge.Vertex2);
                 }
-                else
-                {
-                    var vert = new Vertex(idx, 
-                        _vec3Vertices[idx],
-                        _normals == null ?
-                        new vec3()
-                        : _normals[idx]);
-                    _idxForVertex[idx] = vert;
+            }
+            Vertices.AddLast(verticesSet);
+        }
 
-                    _vertices[idx] = vert;
-                    return vert;
+        public void CalculateNormals(bool refreshEdgesVertices = true)
+        {
+            foreach (var face in Faces)
+            {
+                face.CalculateFaceNormal();
+            }
+
+            RefreshEdgesVertices();
+
+            foreach (var vertex in Vertices)
+            {
+                vertex.CalculateVertexNormal();
+            }
+
+
+
+            OnMeshChanged();
+        }
+
+        public void RefreshEdgesVertices()
+        {
+            Vertices.Clear();
+            Edges.Clear();
+            AddEdgesAndVerticesFrom(Faces);
+        }
+
+        public void Triangulate()
+        {
+            var oldFaces = Faces;
+            foreach (var face in oldFaces)
+            {
+                Faces.Remove(face);
+                Faces.AddLast(face.Triangulate());
+            }
+            OnMeshChanged();
+        }
+
+        public void RefreshRawData(bool recalculateIndices, bool refreshEdgesVertices, bool recalculateNormals = false, bool clockwise = true)
+        {
+            #region refresh data
+            if (refreshEdgesVertices)
+            {
+                RefreshEdgesVertices();
+            }
+            #endregion refresh data
+
+            if (recalculateNormals)
+                CalculateNormals();
+
+            vec3[] verts;
+            vec3[] normals;
+            uint[] indices;
+            if (recalculateIndices)
+            {
+                #region recalculate indices
+                verts = new vec3[Vertices.Count];
+                normals = new vec3[Vertices.Count];
+                var tempIndices = new List<uint>();
+
+                var vertIdxMap = new Dictionary<Vertex, uint>();
+
+                for (uint i = 0; i < Vertices.Count; i++)
+                {
+                    var vert = Vertices[Convert.ToInt32(i)];
+                    verts[i] = vert.Vec3;
+                    normals[i] = vert.Normal;
+                    vertIdxMap.Add(vert, i);
                 }
-            };
-            #endregion getVertex(...) function
 
-            for (int i = 0; i < _indices.Length; i += n)
-            {
-                var idx0 = _indices[i];
-                var idx1 = _indices[i + 1];
-                var idx2 = _indices[i + 2];
-
-
-                Vertex v0 = getVertex(idx0);
-                Vertex v1 = getVertex(idx1);
-                Vertex v2 = getVertex(idx2);
-
-
-                faces.Add(new Face(new Vertex[] { v0, v1, v2 }));
-
-            }
-
-            _faces = faces.ToArray();
-        }
-
-        /// <summary>
-        /// Calculate the normals of this Mesh.
-        /// </summary>
-        public void CalculateNormals()
-        {
-            var normals = new vec3[_vertices.Length];
-
-            foreach (var face in _faces)
-            {
-                face.CalculateNormal();
-            }
-
-            foreach (var vert in _vertices)
-            {
-                vert.CalculateVertexNormal();
-                normals[vert.Index.Value] = vert.Normal;
-            }
-
-            Normals = normals;
-        }
-
-        /// <summary>
-        /// Update AllVertices by using Vec3Vertices.
-        /// </summary>
-        public void UpdateFaceVertices()
-        {
-            foreach (var idx in _indices)
-            {
-                Vertex vert = _idxForVertex[idx];
-                vec3 vec3Vert = _vec3Vertices[idx];
-
-                vert.Vec3 = vec3Vert;
-            }
-        }
-
-        /// <summary>
-        /// Update Vec3Vertices, Indices and Normals by using Vertices.
-        /// </summary>
-        public void UpdateRawData()
-        {
-            //TODO
-            throw new NotImplementedException();
-        }
-
-        public void TriangulateMesh(TriangulationMethod method)
-        {
-
-        }
-
-        public void ApplyTransformationMatrixToEachVertex(mat4 transformationMatrix)
-        {
-            vec3[] vertices = new vec3[Vertices.Length];
-            // Apply transformations to each vertex
-            for (int baseVertIdx = 0; baseVertIdx < _baseVertices.Length; baseVertIdx++)
-            {
-                vec3 vec3Vert = _baseVertices[baseVertIdx];
-                vec4 vec4Vert = new vec4(vec3Vert.x, vec3Vert.y, vec3Vert.z, 1);
-
-                // vec4 res = base.ResultMatrix * vec4Vert; // Apparently not supported in GlmNET, so we do it manually.
-                vec4 res = new vec4();
-                for (int i = 0; i < 4; i++) // i = collumn for mat4
+                foreach (var face in Faces)
                 {
-                    float val = 0;
-                    for (int j = 0; j < 4; j++) // j = row for mat4 and col for vec4
+                    var usedVerts = face.GetUsedVertices();
+                    var idxs = new uint[]{
+                        vertIdxMap[usedVerts.ElementAt(0)],
+                        vertIdxMap[usedVerts.ElementAt(1)],
+                        vertIdxMap[usedVerts.ElementAt(2)],
+                    };
+
+                    //TODO: clockwise, counterclockwise
+
+                    tempIndices.AddRange(idxs);
+                }
+
+                indices = tempIndices.ToArray();
+                #endregion recalculate indices
+            }
+            else
+            {
+                #region reuse current indices
+                var highestIdx = Vertices.Max(x => x.Index);
+                verts = new vec3[highestIdx.Value + 1];
+                normals = new vec3[highestIdx.Value + 1];
+                indices = new uint[Faces.Count * 3];
+
+                var idxPos = 0;
+                foreach (var face in Faces)
+                {
+                    var usedVerts = face.GetUsedVertices();
+                    var vert1 = usedVerts.ElementAt(0);
+                    var vert2 = usedVerts.ElementAt(1);
+                    var vert3 = usedVerts.ElementAt(2);
+
+                    var idx1 = vert1.Index.Value;
+                    var idx2 = vert2.Index.Value;
+                    var idx3 = vert3.Index.Value;
+
+                    indices[idxPos] = idx1;
+                    indices[idxPos + 1] = idx2;
+                    indices[idxPos + 2] = idx3;
+
+                    if (verts[idx1].Equals(new vec3()))
                     {
-                        val += vec4Vert[j] * transformationMatrix[j][i];
+                        verts[idx1] = vert1.Vec3;
+                        normals[idx1] = vert1.Normal;
                     }
-                    res[i] = val;
+                    if (verts[idx2].Equals(new vec3()))
+                    {
+                        verts[idx2] = vert2.Vec3;
+                        normals[idx2] = vert2.Normal;
+                    }
+                    if (verts[idx3].Equals(new vec3()))
+                    {
+                        verts[idx3] = vert3.Vec3;
+                        normals[idx3] = vert3.Normal;
+                    }
+
+                    idxPos += 3;
                 }
-                vertices[baseVertIdx] = new vec3(res[0], res[1], res[2]);
+                
+                #endregion reuse current indices
             }
 
-            Vec3Vertices = vertices;
-            //Vertices changed, so normals need to be recalculated
-            CalculateNormals();
+            VerticesVec3 = verts;
+            Normals = normals;
+            Indices = indices;
+        }
 
-            // Trigger MeshTransformationChangedEvent
-            OnMeshPixelsChangedEvent();
+        public static Mesh MergeData(Mesh m1, Mesh m2)
+        {
+            var deepCopy1 = Mesh.BuildMesh(m1.VerticesVec3, m1.Indices, m1.Normals);
+            var deepCopy2 = Mesh.BuildMesh(m2.VerticesVec3, m2.Indices, m2.Normals);
+
+            var faces1 = deepCopy1.Faces;
+            var faces2 = deepCopy2.Faces;
+            
+            deepCopy1.RefreshEdgesVertices();
+            deepCopy2.RefreshEdgesVertices();
+
+            var copy1VertCount = deepCopy1.Vertices.Count;
+            foreach (var Vertex in deepCopy2.Vertices)
+            {
+                Vertex.Index += (uint)copy1VertCount;
+            }
+
+            var newFaces = new List<Face>();
+            newFaces.AddRange(faces1);
+            newFaces.AddRange(faces2);
+
+            var mesh = new Mesh(newFaces);
+            mesh.RefreshRawData(false, true);
+
+            return mesh;
         }
     }
 }

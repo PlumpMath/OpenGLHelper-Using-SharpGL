@@ -24,6 +24,14 @@ namespace SharpGLHelper.Primitives
 
         #region properties
         /// <summary>
+        /// The LinesBase object containing the grid lines.
+        /// </summary>
+        public LinesBase GridLines
+        {
+            get { return _gridLines; }
+            set { _gridLines = value; }
+        }
+        /// <summary>
         /// Gets or sets the amount of lines in each direction.
         /// </summary>
         public int DirectionLineCount
@@ -74,40 +82,29 @@ namespace SharpGLHelper.Primitives
             Material.Shininess = 1f;
         }
 
-        /// <summary>
-        /// Renders the grid to the gl if it's in DesignMode.
-        /// </summary>
-        /// <param name="gl">The gl</param>
-        /// <param name="renderMode">The rendermode</param>
-        /// <param name="shader">Pass the shader so the material color(s) can be applied locally.</param>
-        public void Render(OpenGL gl, RenderMode renderMode, ExtShaderProgram shader)
-        {
-            if (renderMode != RenderMode.Design)
-                return;
-
-            shader.ApplyMaterial(gl, Material);
-
-            Render(gl, renderMode);
-        }
 
         /// <summary>
-        /// Renders the grid to the gl if it's in DesignMode.
+        /// Renders the grid to the gl.
         /// </summary>
         /// <param name="gl">The gl</param>
-        /// <param name="renderMode">The rendermode</param>
-        public void Render(OpenGL gl, RenderMode renderMode)
-        {
-            // Ensure that we're in design mode (we don't want axis during render)
-            if (renderMode != RenderMode.Design)
-                return;
+        //public void Render(OpenGL gl)
+        //{
+        //    ValidateBeforeRender();
 
+        //    // Draw the lines.
 
-            ValidateBeforeRender();
+        //    _gridLines.Render(gl);
+        //}
 
-            // Draw the lines.
+        //public void Render(OpenGL gl, SharpGLHelper.Shaders2.S1.ShaderManagerS1 shader)
+        //{
+        //    ValidateBeforeRender();
 
-            _gridLines.Render(gl, renderMode, null);
-        }
+        //    shader.Material = Material;
+        //    shader.ApplyChangedProperties(gl);
+        //    // Draw the lines.
+        //    _gridLines.Render(gl);
+        //}
 
         /// <summary>
         /// Calculates the lines using the current grid properties.

@@ -5,8 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using SharpGLHelper.Shaders.Parameters;
-using SharpGLHelper.Shaders.ParameterInterfaces;
 
 namespace SharpGLHelper.Scene
 {
@@ -53,7 +51,7 @@ namespace SharpGLHelper.Scene
         }
         public static ExtShaderProgram LoadPerPixelTransformableShader(OpenGL gl)
         {
-            return CreateShader(gl, new PerPixelTransformableParameters(), "PerPixelTransformable");
+            return CreateShader(gl, new PerPixelTransformableParameters(), "S1");
         }
         #endregion LoadShader methods
 

@@ -33,6 +33,14 @@ void main()
 
 	vec3 normal = vec3(normalVec4.x,normalVec4.y,normalVec4.z);
 
+	// Uncomment to let the camera angle act as light direction.
+	/*mat3 normalMatrix;
+	normalMatrix[0] = Modelview[0].xyz;
+	normalMatrix[1] = Modelview[1].xyz;
+	normalMatrix[2] = Modelview[2].xyz;
+
+    EyespaceNormal = normalMatrix * normal;*/
+
     EyespaceNormal = NormalMatrix * normal;
     gl_Position = Projection * Modelview * pos;
     Diffuse = DiffuseMaterial;

@@ -10,5 +10,6 @@ namespace SharpGLHelper.Shaders.ParameterInterfaces
     {
         string TransformationMatrixId { get; }
         void ApplyTransformableParameters(SharpGL.OpenGL gl, ExtShaderProgram esp, mat4 m);
+        void ApplyTransformableParameters(SharpGL.OpenGL gl, ExtShaderProgram esp, mat4[] m);
     }
 }

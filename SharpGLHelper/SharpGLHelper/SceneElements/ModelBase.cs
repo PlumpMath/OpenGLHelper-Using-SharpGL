@@ -13,34 +13,21 @@ using System.Text;
 using System.Threading.Tasks;
 using SharpGLHelper.ModelComponents;
 using SharpGLHelper.Shaders;
+using SharpGLHelper.Buffers;
 
 namespace SharpGLHelper.SceneElements
 {
-    /// <summary>
-    /// Static: GPU stores model data => increases performance for models that don't change. 
-    /// Dynamic: GPU expects new data during every frame => optimized for changing models.
-    /// </summary>
-    public enum OGLModelUsage : uint
-    {
-        StaticDraw = (uint)OpenGL.GL_STATIC_DRAW,
-        StaticRead = (uint)OpenGL.GL_STATIC_READ,
-        StaticCopy = (uint)OpenGL.GL_STATIC_COPY,
-        DynamicDraw = (uint)OpenGL.GL_DYNAMIC_DRAW,
-        DynamicRead = (uint)OpenGL.GL_DYNAMIC_READ,
-        DynamicCopy = (uint)OpenGL.GL_DYNAMIC_COPY,
-        StreamDraw = (uint)OpenGL.GL_STREAM_DRAW,
-        StreamRead = (uint)OpenGL.GL_STREAM_READ,
-        StreamCopy = (uint)OpenGL.GL_STREAM_COPY,
-    }
 
     /// <summary>
     /// Provides a link between the Mesh and the OpenGL world.
     /// </summary>
     public abstract class ModelBase : OGLVisualSceneElementBase, IDisposable
     {
+        
         #region fields
-        //private ushort[] _indices;
         private Mesh _mesh;
+        private uint[] _indices;
+        private vec3[] _vertices, _normals;
         #endregion fields
 
         #region properties
@@ -53,15 +40,13 @@ namespace SharpGLHelper.SceneElements
             set { _mesh = value; }
         }
 
-        public override ushort[] Indices
+        public override uint[] Indices
         {
             get
             {
+                if (_mesh == null)
+                    return _indices;
                 return _mesh.Indices;
-            }
-            set
-            {
-                _mesh.Indices = value;
             }
         }
 
@@ -69,11 +54,9 @@ namespace SharpGLHelper.SceneElements
         {
             get
             {
+                if (_mesh == null)
+                    return _normals;
                 return _mesh.Normals;
-            }
-            set
-            {
-                _mesh.Normals = value;
             }
         }
 
@@ -81,13 +64,12 @@ namespace SharpGLHelper.SceneElements
         {
             get
             {
-                return _mesh.Vec3Vertices;
-            }
-            set
-            {
-                _mesh.Vec3Vertices = value;
+                if (_mesh == null)
+                    return _vertices;
+                return _mesh.VerticesVec3;
             }
         }
+
         #endregion properties
 
         #region constructors
@@ -95,7 +77,7 @@ namespace SharpGLHelper.SceneElements
         {
 
         }
-        public ModelBase(vec3[] vertices, ushort[] indices, vec3[] normals = null)
+        public ModelBase(vec3[] vertices, uint[] indices, vec3[] normals = null)
         {
             CreateMesh(vertices, indices, normals);
         }
@@ -107,10 +89,14 @@ namespace SharpGLHelper.SceneElements
         /// <param name="vertices">The vertices of the mesh.</param>
         /// <param name="indices">The indices of the mesh.</param>
         /// <param name="normals">The normals of the mesh.</param>
-        public void CreateMesh(vec3[] vertices, ushort[] indices, vec3[] normals = null)
+        public void CreateMesh(vec3[] vertices, uint[] indices, vec3[] normals = null)
         {
-            _mesh = new Mesh(indices, vertices, normals);
-            _mesh.MeshPixelsChanged += Mesh_MeshPixelsChanged;
+            _mesh = Mesh.BuildMesh(vertices, indices, normals);
+            _mesh.RefreshRawData(false, false, true);
+            _mesh.MeshChanged += Mesh_MeshChanged;
+            VerticesCount = _mesh.VerticesVec3.Length;
+            IndicesCount = _mesh.Indices.Length;
+            NormalsCount = _mesh.Normals.Length;
         }
 
         /// <summary>
@@ -119,10 +105,12 @@ namespace SharpGLHelper.SceneElements
         /// <param name="gl">The GL.</param>
         public void UpdateGeometry(OpenGL gl)
         {
-            GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, VertexBufferId.Value);
-            GL.BufferData(OpenGL.GL_ARRAY_BUFFER, Vertices.SelectMany(v => v.to_array()).ToArray(), (uint)Usage);
-            GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, NormalBufferId.Value);
-            GL.BufferData(OpenGL.GL_ARRAY_BUFFER, Normals.SelectMany(v => v.to_array()).ToArray(), (uint)Usage);
+            var verts = Vertices.SelectMany(v => v.to_array()).ToArray();
+            var norms = Normals.SelectMany(v => v.to_array()).ToArray();
+            VertexBuffer.BindBuffer(gl);// gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, VertexBufferId.Value);
+            VertexBuffer.SetBufferData(gl, OGLBufferDataTarget.ArrayBuffer, verts, Usage, 3); // gl.BufferData(OpenGL.GL_ARRAY_BUFFER, verts, (uint)Usage);
+            NormalBuffer.BindBuffer(gl); // gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, NormalBufferId.Value);
+            NormalBuffer.SetBufferData(gl, OGLBufferDataTarget.ArrayBuffer, norms, Usage, 3); // gl.BufferData(OpenGL.GL_ARRAY_BUFFER, norms, (uint)Usage);
         }
 
 
@@ -132,7 +120,7 @@ namespace SharpGLHelper.SceneElements
         /// </summary>
         public override void CalculateNormals()
         {
-            _mesh.CalculateNormals();
+            _mesh.RefreshRawData(false, true, true, false);
         }
 
 
@@ -144,16 +132,17 @@ namespace SharpGLHelper.SceneElements
             if (GL == null)
                 return;
 
-            List<uint> buffersToBeRemoved = new List<uint>();
+            var buffersToBeRemoved = new List<OGLBufferObject>();
 
-            if (IndexBufferId != null)
-                buffersToBeRemoved.Add(IndexBufferId.Value);
-            if (VertexBufferId != null)
-                buffersToBeRemoved.Add(VertexBufferId.Value);
-            if (NormalBufferId != null)
-                buffersToBeRemoved.Add(NormalBufferId.Value);
+            if (IndexBuffer != null)
+                buffersToBeRemoved.Add(IndexBuffer);
+            if (VertexBuffer != null)
+                buffersToBeRemoved.Add(VertexBuffer);
+            if (NormalBuffer != null)
+                buffersToBeRemoved.Add(NormalBuffer);
 
-            GL.DeleteBuffers(buffersToBeRemoved.Count, buffersToBeRemoved.ToArray());
+            OGLBufferId.DeleteBuffers(GL, buffersToBeRemoved);
+            //GL.DeleteBuffers(buffersToBeRemoved.Count, buffersToBeRemoved.ToArray());
         }
 
         /// <summary>
@@ -163,13 +152,13 @@ namespace SharpGLHelper.SceneElements
         /// <returns>A float[4] containing RGBA values.</returns>
         public ColorF GenerateColorFromId()
         {
-            if (VertexBufferId == null)
+            if (VertexBuffer == null)
             {
                 return new ColorF(0,0,0,0);
             }
 
             // Get the integer ID
-            var i = (int)VertexBufferId.Value;
+            var i = (int)VertexBuffer.BufferId.Value;
 
             int b = (i >> 16) & 0xFF;
             int g = (i >> 8) & 0xFF;
@@ -178,16 +167,28 @@ namespace SharpGLHelper.SceneElements
             return new ColorF(255, r, g, b);
         }
 
+        public override void ClearStaticData()
+        {
+            base.ClearStaticData();
+
+            _indices = Mesh.Indices;
+            _vertices = Mesh.VerticesVec3;
+            _normals = Mesh.Normals;
+            Mesh = null;
+        }
 
         /// <summary>
         /// Calls UpdateGeometry, whenever a transformation is applied to the mesh.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void Mesh_MeshPixelsChanged(object sender, Events.MeshPixelsChangedEventArgs e)
+        private void Mesh_MeshChanged(object sender, Events.MeshChangedEventArgs e)
         {
             if (GL != null)
+            {
+                Mesh.RefreshRawData(false, true);
                 UpdateGeometry(GL);
+            }
         }
     }
 }

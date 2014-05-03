@@ -13,29 +13,37 @@ namespace SharpGLHelper.IO
 {
     class ObjFileModel : IFileModel
     {
+        #region fields;
+        float[] _vertices;
+        uint[] _indices;
+        float[] _normals;
+        Material[] _materials;
+        ModelBase _visualModel;
+        Mesh _mesh = null;
+        #endregion fields;
 
         #region properties
         public float[] Vertices
         {
             get
             {
-                throw new NotImplementedException();
+                return _vertices;
             }
             set
             {
-                throw new NotImplementedException();
+                _vertices = value;
             }
         }
 
-        public float[] Indices
+        public uint[] Indices
         {
             get
             {
-                throw new NotImplementedException();
+                return _indices;
             }
             set
             {
-                throw new NotImplementedException();
+                _indices = value;
             }
         }
 
@@ -43,11 +51,11 @@ namespace SharpGLHelper.IO
         {
             get
             {
-                throw new NotImplementedException();
+                return _normals;
             }
             set
             {
-                throw new NotImplementedException();
+                _normals = value;
             }
         }
 
@@ -55,30 +63,38 @@ namespace SharpGLHelper.IO
         {
             get
             {
-                throw new NotImplementedException();
+                return _materials;
             }
             set
             {
-                throw new NotImplementedException();
+                _materials = value;
             }
         }
 
+        /// <summary>
+        /// Gets the loaded DynamicOGLModel. Automatically calls GenerateVisualModel(...) when load succeeded and _visualModel was still null.
+        /// </summary>
         public ModelBase VisualModel
         {
             get
             {
-                throw new NotImplementedException();
+                if (_visualModel == null && _mesh != null)
+                    GenerateVisualModel();
+                return _visualModel;
             }
             set
             {
-                throw new NotImplementedException();
+                _visualModel = value;
             }
         }
         #endregion properties
 
+        /// <summary>
+        /// Generates the DynamicOGLModel from the data that was retrieved from LoadObjFile.
+        /// </summary>
         public void GenerateVisualModel()
         {
-            throw new NotImplementedException();
+            VisualModel = new DynamicOGLModel(_mesh);
         }
 
         public void LoadObjFile(string path)
@@ -193,9 +209,9 @@ namespace SharpGLHelper.IO
             #region create Vertex- objects
             for (int i = 0; i < vertices.Length; i++)
             {
-                vertices[i] = new Vertex(
-                    (ushort)i, // index
-                    new vec3(v[i].x, v[i].y, v[i].z), // vertex
+                vertices[i] = new Vertex( 
+                    new vec4(v[i].x, v[i].y, v[i].z, v[i].w), // vertex
+                    (uint)i, // index
                     vn.Count > i ? new vec3(vn[i].x, vn[i].y, vn[i].z) : new vec3()); // normal
             }
             #endregion create Vertex- objects
@@ -211,15 +227,23 @@ namespace SharpGLHelper.IO
                     verts[j] = vertices[face[j]];
                 }
 
-                faces[i] = new Face(verts);
+                //faces[i] = new Face(verts);
             }
             #endregion create Face- objects
 
             // Create mesh
-            var mesh = new Mesh(faces,false);
+            var mesh = new Mesh(faces);
 
-            VisualModel = new DynamicOGLModel(mesh);
+            mesh.Triangulate();
 
+
+            mesh.RefreshRawData(true, true, true);
+
+
+            Indices = mesh.Indices;
+            Vertices = mesh.VerticesVec3.SelectMany<vec3, float>(x=> new float[]{x.x, x.y, x.z}).ToArray();
+            Normals = mesh.Normals.SelectMany<vec3, float>(x => new float[] { x.x, x.y, x.z }).ToArray();
+            _mesh = mesh;
         }
     }
 }

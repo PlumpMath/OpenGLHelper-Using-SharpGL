@@ -1,8 +1,10 @@
 ﻿using GlmNet;
 using SharpGL;
 using SharpGL.SceneGraph.Core;
+using SharpGLHelper.Buffers;
 using SharpGLHelper.Common;
 using SharpGLHelper.ModelComponents;
+using SharpGLHelper.Shaders;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,17 +20,46 @@ namespace SharpGLHelper.SceneElements
         #region fields
         private int _bufferStride = 3;
         private vec3[] _vertices, _normals;
-        private ushort[] _indices;
-        private uint? _vertexBufferId, _normalBufferId, _indexBufferId;
+        private uint[] _indices;
+        private VBO _vertexBuffer, _normalBuffer;
+        private IBO _indexBuffer;
         private OpenGL _gl;
         private bool _visible = true;
         private Material _material = null;
         private OGLModelUsage _usage;
         private bool _autoCalculateNormals = true;
         private uint _glDrawMode = OpenGL.GL_TRIANGLES;
+
+        private long _verticesCount, _indicesCount, _normalsCount;
         #endregion fields
 
         #region properties
+        /// <summary>
+        /// The amount of vertices that are contained in the buffer.
+        /// </summary>
+        public virtual long VerticesCount
+        {
+            get { return _verticesCount; }
+            set { _verticesCount = value; }
+        }
+
+        /// <summary>
+        /// The amount of indices that are contained in the buffer.
+        /// </summary>
+        public virtual long IndicesCount
+        {
+            get { return _indicesCount; }
+            set { _indicesCount = value; }
+        }
+
+        /// <summary>
+        /// The amount of normals that are contained in the buffer.
+        /// </summary>
+        public virtual long NormalsCount
+        {
+            get { return _normalsCount; }
+            set { _normalsCount = value; }
+        }
 
         /// <summary>
         /// The stride between 
@@ -67,26 +98,26 @@ namespace SharpGLHelper.SceneElements
         /// <summary>
         /// The normal buffer for binding with the GL.
         /// </summary>
-        public virtual uint? NormalBufferId
+        public virtual VBO NormalBuffer
         {
-            get { return _normalBufferId; }
-            set { _normalBufferId = value; }
+            get { return _normalBuffer; }
+            set { _normalBuffer = value; }
         }
         /// <summary>
         /// The vertex buffer for binding with the GL.
         /// </summary>
-        public uint? VertexBufferId
+        public VBO VertexBuffer
         {
-            get { return _vertexBufferId; }
-            set { _vertexBufferId = value; }
+            get { return _vertexBuffer; }
+            set { _vertexBuffer = value; }
         }
         /// <summary>
         /// The index buffer for binding with the GL.
         /// </summary>
-        public uint? IndexBufferId
+        public IBO IndexBuffer
         {
-            get { return _indexBufferId; }
-            set { _indexBufferId = value; }
+            get { return _indexBuffer; }
+            set { _indexBuffer = value; }
         }
         /// <summary>
         /// The opengl instance.
@@ -100,10 +131,15 @@ namespace SharpGLHelper.SceneElements
         /// <summary>
         /// This indices for this model. Used for pointing to a position in the Normals- and Vertices arrays.
         /// </summary>
-        public virtual ushort[] Indices
+        public virtual uint[] Indices
         {
             get { return _indices; }
-            set { _indices = value; }
+            set 
+            { 
+                _indices = value;
+                if (value != null)
+                    _indicesCount = value.Length;
+            }
         }
         /// <summary>
         /// The normals for this model. Primarily used for lighting calculations by telling the GL in which direction the surface is facing.
@@ -111,7 +147,12 @@ namespace SharpGLHelper.SceneElements
         public virtual vec3[] Normals
         {
             get { return _normals; }
-            set { _normals = value; }
+            set
+            {
+                _normals = value;
+                if (value != null)
+                    _normalsCount = value.Length;
+            }
         }
         /// <summary>
         /// The vertices for this model. 
@@ -119,7 +160,12 @@ namespace SharpGLHelper.SceneElements
         public virtual vec3[] Vertices
         {
             get { return _vertices; }
-            set { _vertices = value; }
+            set
+            {
+                _vertices = value;
+                if (value != null)
+                    _verticesCount = value.Length;
+            }
         }
         /// <summary>
         /// Checks if the normals can be automatically calculated if they're unavailable or after a transformation.
@@ -139,7 +185,15 @@ namespace SharpGLHelper.SceneElements
         }
         #endregion properties
 
-        public abstract void Render(OpenGL gl, RenderMode renderMode, Shaders.ExtShaderProgram shader = null);
+        //public abstract void Render(OpenGL gl, Shaders.ShaderManagerBase shader = null);
+
+        /// <summary>
+        /// Clear all static data that can be stored by the GPU. All static data-dependant methods will throw exceptions after this.
+        /// It's recommended to call this after a static element has been created and all it's raw data is sent to the GPU. 
+        /// </summary>
+        public virtual void ClearStaticData()
+        {
+        }
 
         /// <summary>
         /// Generates the vertices, normals and indices and creates them for the OpenGL.
@@ -152,21 +206,31 @@ namespace SharpGLHelper.SceneElements
             _usage = usage;
 
             // Create the data buffers.
-            IndexBufferId = CreateBufferId(gl);
-            VertexBufferId = CreateBufferId(gl);
-            NormalBufferId = CreateBufferId(gl);
+            var buffers = OGLBufferId.CreateBufferIds(gl, 3);
+            IndexBuffer = new IBO(buffers[0]);
+            NormalBuffer = new VBO(buffers[1]);
+            VertexBuffer = new VBO(buffers[2]);
 
             if (AutoCalculateNormals)
             {
                 CalculateNormals();
             }
 
-            GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, VertexBufferId.Value);
-            GL.BufferData(OpenGL.GL_ARRAY_BUFFER, Vertices.SelectMany(v => v.to_array()).ToArray(), (uint)usage);
-            GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, NormalBufferId.Value);
-            GL.BufferData(OpenGL.GL_ARRAY_BUFFER, Normals.SelectMany(v => v.to_array()).ToArray(), (uint)usage);
-            GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, IndexBufferId.Value);
-            GL.BufferData(OpenGL.GL_ARRAY_BUFFER, Indices, (uint)usage);
+            var vertData = Vertices.SelectMany(v => v.to_array()).ToArray();
+            VertexBuffer.BindBuffer(gl); // GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, VertexBuffer.Buffer.Value);
+            VertexBuffer.SetBufferData(gl, OGLBufferDataTarget.ArrayBuffer, vertData, usage, 3); // GL.BufferData(OpenGL.GL_ARRAY_BUFFER, vertData, (uint)usage);
+
+            var normData = Normals.SelectMany(v => v.to_array()).ToArray();
+            NormalBuffer.BindBuffer(gl); //GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, NormalBuffer.Buffer.Value);
+            NormalBuffer.SetBufferData(gl, OGLBufferDataTarget.ArrayBuffer, normData, usage, 3); // GL.BufferData(OpenGL.GL_ARRAY_BUFFER, normData, (uint)usage);
+
+            IndexBuffer.BindBuffer(gl); // GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, IndexBuffer.Buffer.Value);
+            IndexBuffer.SetBufferData(gl, OGLBufferDataTarget.ArrayBuffer, Indices, usage, 1); // GL.BufferData(OpenGL.GL_ARRAY_BUFFER, Indices, (uint)usage);
+
+            if (new OGLModelUsage[]{OGLModelUsage.StaticCopy, OGLModelUsage.StaticDraw, OGLModelUsage.StaticRead}.Contains(usage))
+            {
+                ClearStaticData();
+            }
         }
 
         /// <summary>
@@ -177,96 +241,97 @@ namespace SharpGLHelper.SceneElements
         {
         }
 
-
-        public static uint CreateBufferId(OpenGL gl)
-        {
-            //  Generate the vertex array.
-            uint[] ids = new uint[1];
-            gl.GenBuffers(1, ids);
-            return ids[0];
-        }
-
         /// <summary>
         /// Calls VertexBuffer.Bind(gl), IndexBuffer.Bind(gl) and Material.Bind(gl). 
         /// </summary>
         /// <param name="gl">The OpenGL</param>
-        public void Bind()
+        public void Bind(OpenGL gl)
         {
-            if (GL == null)
-            {
-                throw new ArgumentNullException("OpenGL parameter cannot be null. Call 'GenerateGeomerty(...)' before attempting to bind.");
-            }
+            //if (gl == null)
+            //{
+            //    throw new ArgumentNullException("OpenGL parameter cannot be null. Call 'GenerateGeometry(...)' before attempting to bind.");
+            //}
 
             // Bind the vertex, normal and index buffers.
-            if (VertexBufferId != null)
+            if (VertexBuffer != null)
             {
                 //Bind
-                GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, VertexBufferId.Value);
-                GL.VertexAttribPointer(VertexAttributes.Position, BufferStride, OpenGL.GL_FLOAT, false, 0, IntPtr.Zero);
-                GL.EnableVertexAttribArray(VertexAttributes.Position);
+                //VertexBuffer.BindBuffer(gl); // 
+                gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, VertexBuffer.BufferId.Value);
+                gl.VertexAttribPointer(VertexAttributes.Position, BufferStride, OpenGL.GL_FLOAT, false, 0, IntPtr.Zero);
+                gl.EnableVertexAttribArray(VertexAttributes.Position);
             }
 
-            if (NormalBufferId != null)
+            if (NormalBuffer != null)
             {
                 //Bind
-                GL.BindBuffer(OpenGL.GL_ARRAY_BUFFER, NormalBufferId.Value);
-                GL.VertexAttribPointer(VertexAttributes.Normal, BufferStride, OpenGL.GL_FLOAT, false, 0, IntPtr.Zero);
-                GL.EnableVertexAttribArray(VertexAttributes.Normal);
+                //NormalBuffer.BindBuffer(gl); // 
+                gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, NormalBuffer.BufferId.Value);
+                gl.VertexAttribPointer(VertexAttributes.Normal, BufferStride, OpenGL.GL_FLOAT, false, 0, IntPtr.Zero);
+                gl.EnableVertexAttribArray(VertexAttributes.Normal);
             }
 
-            if (IndexBufferId != null)
+            if (IndexBuffer != null)
             {
-                GL.BindBuffer(OpenGL.GL_ELEMENT_ARRAY_BUFFER, IndexBufferId.Value);
+                //IndexBuffer.BindBuffer(gl); // 
+                gl.BindBuffer(OpenGL.GL_ELEMENT_ARRAY_BUFFER, IndexBuffer.BufferId.Value);
             }
         }
 
 
 
-        /// <summary>
-        /// Generates and draws the model from scratch for the given GL. Do NOT use this method for each draw-call. 
-        /// This method should only be used for drawing a model once.
-        /// </summary>
-        /// <param name="gl"></param>
-        /// <param name="model"></param>
-        public static void GenerateAndDrawOnce(OpenGL gl, OGLVisualSceneElementBase model)
-        {
-            var verts = model.Vertices.SelectMany(v => v.to_array()).ToArray();
-            var normals = model.Normals.SelectMany(v => v.to_array()).ToArray();
-            var indices = model.Indices;
-            var drawMode = model.GlDrawMode;
+        ///// <summary>
+        ///// Generates and draws the model from scratch for the given GL. Do NOT use this method for each draw-call. 
+        ///// This method should only be used for drawing a model once.
+        ///// </summary>
+        ///// <param name="gl"></param>
+        ///// <param name="model"></param>
+        //public static List<uint> GenerateAndDrawOnce(OpenGL gl, OGLVisualSceneElementBase model)
+        //{
+        //    var verts = model.Vertices.SelectMany(v => v.to_array()).ToArray();
+        //    var normals = model.Normals.SelectMany(v => v.to_array()).ToArray();
+        //    var indices = model.Indices;
+        //    var drawMode = model.GlDrawMode;
 
-            var usage = OGLModelUsage.StaticRead;
+        //    var usage = OGLModelUsage.StaticRead;
 
-            // Create the data buffers.
-            var indexBufferId = CreateBufferId(gl);
-            var vertexBufferId = CreateBufferId(gl);
-            var normalBufferId = CreateBufferId(gl);
+        //    // Create the data buffers.
+        //    var indexBufferId = CreateBufferId(gl);
+        //    var vertexBufferId = CreateBufferId(gl);
+        //    var normalBufferId = CreateBufferId(gl);
 
-            gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, vertexBufferId);
-            gl.BufferData(OpenGL.GL_ARRAY_BUFFER, model.Vertices.SelectMany(v => v.to_array()).ToArray(), (uint)usage);
-            gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, normalBufferId);
-            gl.BufferData(OpenGL.GL_ARRAY_BUFFER, model.Normals.SelectMany(v => v.to_array()).ToArray(), (uint)usage);
-            gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, indexBufferId);
-            gl.BufferData(OpenGL.GL_ARRAY_BUFFER, model.Indices, (uint)usage);
+        //    gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, vertexBufferId);
+        //    gl.BufferData(OpenGL.GL_ARRAY_BUFFER, model.Vertices.SelectMany(v => v.to_array()).ToArray(), (uint)usage);
+        //    gl.VertexAttribPointer(VertexAttributes.Position, model.BufferStride, OpenGL.GL_FLOAT, false, 0, IntPtr.Zero);
+        //    gl.EnableVertexAttribArray(VertexAttributes.Position);
 
-            gl.FrontFace(OpenGL.GL_CW);
+        //    gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, normalBufferId);
+        //    gl.BufferData(OpenGL.GL_ARRAY_BUFFER, model.Normals.SelectMany(v => v.to_array()).ToArray(), (uint)usage);
+        //    gl.VertexAttribPointer(VertexAttributes.Normal, model.BufferStride, OpenGL.GL_FLOAT, false, 0, IntPtr.Zero);
+        //    gl.EnableVertexAttribArray(VertexAttributes.Normal);
 
-            // Draw the elements.
-            gl.DrawElements(drawMode, indices.Length, OpenGL.GL_UNSIGNED_SHORT, IntPtr.Zero);
+        //    gl.BindBuffer(OpenGL.GL_ARRAY_BUFFER, indexBufferId);
+        //    gl.BufferData(OpenGL.GL_ARRAY_BUFFER, model.Indices, (uint)usage);
+        //    gl.BindBuffer(OpenGL.GL_ELEMENT_ARRAY_BUFFER, indexBufferId);
+
+        //    gl.FrontFace(OpenGL.GL_CW);
+
+        //    // Draw the elements.
+        //    gl.DrawElements(drawMode, indices.Length, OpenGL.GL_UNSIGNED_SHORT, IntPtr.Zero);
 
 
-            // Clean up
-            List<uint> buffersToBeRemoved = new List<uint>();
+        //    // Clean up
+        //    List<uint> buffersToBeRemoved = new List<uint>();
 
-            if (model.IndexBufferId != null)
-                buffersToBeRemoved.Add(model.IndexBufferId.Value);
-            if (model.VertexBufferId != null)
-                buffersToBeRemoved.Add(model.VertexBufferId.Value);
-            if (model.NormalBufferId != null)
-                buffersToBeRemoved.Add(model.NormalBufferId.Value);
+        //    if (model.IndexBufferId != null)
+        //        buffersToBeRemoved.Add(model.IndexBufferId.Value);
+        //    if (model.VertexBufferId != null)
+        //        buffersToBeRemoved.Add(model.VertexBufferId.Value);
+        //    if (model.NormalBufferId != null)
+        //        buffersToBeRemoved.Add(model.NormalBufferId.Value);
 
-            gl.DeleteBuffers(buffersToBeRemoved.Count, buffersToBeRemoved.ToArray());
-        }
+        //    return buffersToBeRemoved;
+        //}
 
 
     }

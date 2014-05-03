@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace SharpGLHelper.Extensions
+namespace SharpGLHelper
 {
     /// <summary>
     /// Provides matrix and vector extentions primarely for the GlmNET library. 
@@ -404,6 +404,28 @@ namespace SharpGLHelper.Extensions
         public static vec3 Substract(this vec3 v1, vec3 v2)
         {
             return new vec3(v1.x - v2.x, v1.y - v2.y, v1.z - v2.z);
+        }
+
+        /// <summary>
+        /// Multiplies a 4x1 vector with a 4x4 transformation matrix.
+        /// </summary>
+        /// <param name="vec">The 4x1 vector.</param>
+        /// <param name="mat">The 4x4 matrix.</param>
+        /// <returns></returns>
+        public static vec4 Multiply (this vec4 vec, mat4 mat)
+        {
+            var pos = new vec4();
+            for (int i = 0; i < 4; i++)
+            {
+                float newPosVal = 0.0f;
+                for (int j = 0; j < 4; j++)
+                {
+                    newPosVal += vec[j] * mat[j][i];
+                }
+                pos[i] = newPosVal;
+            }
+
+            return pos;
         }
     }
 }

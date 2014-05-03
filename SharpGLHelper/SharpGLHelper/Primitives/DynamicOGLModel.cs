@@ -16,7 +16,7 @@ namespace SharpGLHelper.Primitives
     /// </summary>
     public class DynamicOGLModel: ModelBase
     {
-        public DynamicOGLModel(vec3[] verts, ushort[] indices, vec3[] normals)
+        public DynamicOGLModel(vec3[] verts, uint[] indices, vec3[] normals)
         {
             CreateMesh(verts, indices, normals);
         }
@@ -24,20 +24,23 @@ namespace SharpGLHelper.Primitives
         public DynamicOGLModel(Mesh mesh) 
         {
             Mesh = mesh;
-            mesh.UpdateRawData();
+            mesh.RefreshRawData(false, false);
+            VerticesCount = mesh.VerticesVec3.Length;
+            IndicesCount = mesh.Indices.Length;
+            NormalsCount = mesh.Normals.Length;
         }
 
+        //public override void Render(SharpGL.OpenGL gl, Shaders.ShaderManagerBase shader = null)
+        //{
+        //    // Load our cube data ClockWise.
+        //    gl.FrontFace(OpenGL.GL_CW);
 
-        public override void Render(OpenGL gl, RenderMode renderMode, ExtShaderProgram shader = null)
-        {
-            // Load our cube data ClockWise.
-            gl.FrontFace(OpenGL.GL_CW);
+        //    // Binds buffers.
+        //    base.Bind(gl);
 
-            // Binds buffers.
-            base.Bind();
-
-            // Draw the elements.
-            gl.DrawElements(OpenGL.GL_TRIANGLES, Indices.Length, OpenGL.GL_UNSIGNED_SHORT, IntPtr.Zero);
-        }
+        //    // Draw the elements.
+        //    gl.DrawElements(OpenGL.GL_TRIANGLES, (int)IndicesCount, OpenGL.GL_UNSIGNED_SHORT, IntPtr.Zero);
+        
+        //}
     }
 }

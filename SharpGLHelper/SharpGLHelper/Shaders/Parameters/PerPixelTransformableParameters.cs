@@ -20,5 +20,11 @@ namespace SharpGLHelper.Shaders.Parameters
         }
 
 
+
+
+        public void ApplyTransformableParameters(SharpGL.OpenGL gl, ExtShaderProgram esp, GlmNet.mat4[] m)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

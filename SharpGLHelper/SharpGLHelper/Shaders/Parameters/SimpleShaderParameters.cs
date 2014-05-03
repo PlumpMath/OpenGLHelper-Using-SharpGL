@@ -88,5 +88,11 @@ namespace SharpGLHelper.Shaders.Parameters
         {
             ParameterAppliers.JOG.ApplyTransformableParameters(gl, esp, m);
         }
+
+
+        public void ApplyTransformableParameters(SharpGL.OpenGL gl, ExtShaderProgram esp, GlmNet.mat4[] m)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

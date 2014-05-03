@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.21005.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpGLHelper", "SharpGLHelper\SharpGLHelper.csproj", "{3090534F-071A-48D6-8EEE-22525F86FD9E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{9F5EFCC7-30FA-4C29-ABDB-66819BCC7303}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{3090534F-071A-48D6-8EEE-22525F86FD9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3090534F-071A-48D6-8EEE-22525F86FD9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3090534F-071A-48D6-8EEE-22525F86FD9E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9F5EFCC7-30FA-4C29-ABDB-66819BCC7303}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F5EFCC7-30FA-4C29-ABDB-66819BCC7303}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F5EFCC7-30FA-4C29-ABDB-66819BCC7303}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F5EFCC7-30FA-4C29-ABDB-66819BCC7303}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

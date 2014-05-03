@@ -10,7 +10,7 @@ namespace SharpGLHelper.Shaders.ParameterInterfaces
     /// <summary>
     /// Implement this interface for shaders that accept  Modelview-, Projection- and/or Normal matrices.
     /// </summary>
-    interface IMVPNParameters
+    public interface IMVPNParameters
     {
         string ProjectionMatrixId { get; }
         string ModelviewMatrixId { get; }

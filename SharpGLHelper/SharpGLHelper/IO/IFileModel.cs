@@ -18,7 +18,7 @@ namespace SharpGLHelper.IO
         /// <summary>
         /// The indices.
         /// </summary>
-        float[] Indices { get; set; }
+        uint[] Indices { get; set; }
         /// <summary>
         /// The normals.
         /// </summary>

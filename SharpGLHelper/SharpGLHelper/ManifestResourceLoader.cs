@@ -15,12 +15,24 @@ namespace SharpGLHelper
         /// </summary>
         /// <param name="textFileName">Name of the text file.</param>
         /// <returns>The contents of the manifest resource.</returns>
-        public static string LoadTextFile(string textFileName)
+        public static string LoadTextFile(string path, Assembly executingAssembly, bool autoAttachAssemblyName = true)
         {
-            var executingAssembly = Assembly.GetExecutingAssembly();
-            var pathToDots = textFileName.Replace("\\", ".");
-            string assemblyName = executingAssembly.GetName().Name;
-            var location = string.Format("{0}.{1}", assemblyName, pathToDots);
+            if (executingAssembly == null)
+                executingAssembly = Assembly.GetExecutingAssembly();
+
+            var pathToDots = path.Replace("\\", ".").Replace("/", ".");
+
+
+            string location;
+            if (autoAttachAssemblyName)
+            {
+                string assemblyName = executingAssembly.GetName().Name;
+                location = string.Format("{0}.{1}", assemblyName, pathToDots);
+            }
+            else
+            {
+                location = pathToDots;
+            }
 
             using (var stream = executingAssembly.GetManifestResourceStream(location))
             {

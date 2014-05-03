@@ -19,7 +19,7 @@ namespace SharpGLHelper.Primitives
         #region fields
         private float _axisLength = 4, 
             _lineThickness = 2;
-        private LinesBase _lineX, _lineY, _lineZ;
+        private LinesBase[] _lines = new LinesBase[3];
         #endregion fields
 
         #region properties
@@ -44,16 +44,16 @@ namespace SharpGLHelper.Primitives
         /// </summary>
         public Material MaterialX
         {
-            get { return _lineX.Material; }
-            set { _lineX.Material = value; }
+            get { return Lines[0].Material; }
+            set { Lines[0].Material = value; }
         }
         /// <summary>
         /// The material of the the Y-axis
         /// </summary>
         public Material MaterialY
         {
-            get { return _lineY.Material; }
-            set { _lineY.Material = value; }
+            get { return Lines[1].Material; }
+            set { Lines[1].Material = value; }
         }
 
         /// <summary>
@@ -61,9 +61,42 @@ namespace SharpGLHelper.Primitives
         /// </summary>
         public Material MaterialZ
         {
-            get { return _lineZ.Material; }
-            set { _lineZ.Material = value; }
+            get { return Lines[2].Material; }
+            set { Lines[2].Material = value; }
         }
+
+        /// <summary>
+        /// The line axis pointing towards the X-direction.
+        /// </summary>
+        public LinesBase LineX
+        {
+            get { return Lines[0]; }
+            set { Lines[0] = value; }
+        }
+        /// <summary>
+        /// The line axis pointing towards the Y-direction.
+        /// </summary>
+        public LinesBase LineY
+        {
+            get { return Lines[1]; }
+            set { Lines[1] = value; }
+        }
+        /// <summary>
+        /// The line axis pointing towards the Z-direction.
+        /// </summary>
+        public LinesBase LineZ
+        {
+            get { return Lines[2]; }
+            set { Lines[2] = value; }
+        }
+        /// <summary>
+        /// All lines
+        /// </summary>
+        public LinesBase[] Lines
+        {
+            get { return _lines; }
+        }
+        
         #endregion properties
 
         #region constructors
@@ -71,54 +104,53 @@ namespace SharpGLHelper.Primitives
         {
             RecalculateShape(gl);
 
-            _lineX.Material = new Material();
-            _lineX.Material.Ambient = new ColorF(1f, 1f, 0, 0);
+            LineX.Material = new Material();
+            LineX.Material.Ambient = new ColorF(1f, 1f, 0, 0);
 
-            _lineY.Material = new Material();
-            _lineY.Material.Ambient = new ColorF(1f, 0, 1f, 0);
+            LineY.Material = new Material();
+            LineY.Material.Ambient = new ColorF(1f, 0, 1f, 0);
 
-            _lineZ.Material = new Material();
-            _lineZ.Material.Ambient = new ColorF(1f, 0, 0, 1f);
+            LineZ.Material = new Material();
+            LineZ.Material.Ambient = new ColorF(1f, 0, 0, 1f);
 
             var lineWidth = 5f;
 
-            _lineX.LineWidth = lineWidth;
-            _lineY.LineWidth = lineWidth;
-            _lineZ.LineWidth = lineWidth;
+            LineX.LineWidth = lineWidth;
+            LineY.LineWidth = lineWidth;
+            LineZ.LineWidth = lineWidth;
         }
 
         public Axis(OpenGL gl, Material matX, Material matY, Material matZ, float lineWidth)
         {
             RecalculateShape(gl);
 
-            _lineX.Material = matX;
-            _lineY.Material = matY;
-            _lineZ.Material = matZ;
+            LineX.Material = matX;
+            LineY.Material = matY;
+            LineZ.Material = matZ;
 
-            _lineX.LineWidth = lineWidth;
-            _lineY.LineWidth = lineWidth;
-            _lineZ.LineWidth = lineWidth;
+            LineX.LineWidth = lineWidth;
+            LineY.LineWidth = lineWidth;
+            LineZ.LineWidth = lineWidth;
         }
         #endregion constructors
 
 
-        public void Render(OpenGL gl, RenderMode renderMode, ExtShaderProgram shader)
-        {
-            // Ensure that we're in design mode (we don't want axis during render)
-            if (renderMode != RenderMode.Design)
-                return;
+        //public void Render(OpenGL gl, ShaderManagerS1 shader)
+        //{
+        //    ValidateBeforeRender();
 
-            ValidateBeforeRender();
+        //    shader.Material = MaterialX;
+        //    shader.ApplyChangedProperties(gl);
+        //    _lineX.Render(gl, shader);
 
-            shader.ApplyMaterial(gl, MaterialX);
-            _lineX.Render(gl, renderMode, shader);
-                
-            shader.ApplyMaterial(gl, MaterialY);
-            _lineY.Render(gl, renderMode, shader);
+        //    shader.Material = MaterialY;
+        //    shader.ApplyChangedProperties(gl);
+        //    _lineY.Render(gl, shader);
 
-            shader.ApplyMaterial(gl, MaterialZ);
-            _lineZ.Render(gl, renderMode, shader);
-        }
+        //    shader.Material = MaterialZ;
+        //    shader.ApplyChangedProperties(gl);
+        //    _lineZ.Render(gl, shader);
+        //}
 
 
 
@@ -152,9 +184,9 @@ namespace SharpGLHelper.Primitives
                 );
 
 
-            _lineX = new LinesBase(gl, lineX, null);
-            _lineY = new LinesBase(gl, lineY, null);
-            _lineZ = new LinesBase(gl, lineZ, null);
+            LineX = new LinesBase(gl, lineX, null);
+            LineY = new LinesBase(gl, lineY, null);
+            LineZ = new LinesBase(gl, lineZ, null);
         }
 
         /// <summary>
@@ -162,7 +194,7 @@ namespace SharpGLHelper.Primitives
         /// </summary>
         private void ValidateBeforeRender()
         {
-            if (_lineX == null || _lineY == null || _lineZ == null)
+            if (LineX == null || LineY == null || LineZ == null)
             {
                 throw new Exception("Axis aren't calculated.");
             }

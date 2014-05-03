@@ -13,7 +13,7 @@ using SharpGLHelper.Shaders.ParameterInterfaces;
 namespace SharpGLHelper.Shaders
 {
     /// <summary>
-    /// An extended ShaderProgram. This includes a shadername 
+    /// An extended ShaderProgram.
     /// </summary>
     public class ExtShaderProgram : IDisposable
     {

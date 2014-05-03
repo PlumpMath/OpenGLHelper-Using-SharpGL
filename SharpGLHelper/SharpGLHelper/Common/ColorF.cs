@@ -57,6 +57,22 @@ namespace SharpGLHelper.Common
             IntToFloatColor(255, r, g, b);
         }
 
+        /// <summary>
+        /// Converts uint to ColorF. 3th and 4th byte = blue, 5th and 6th byte = green, 7th and last byte = red.
+        /// </summary>
+        /// <param name="colorRGB"></param>
+        public ColorF(ulong colorRGB)
+        {
+            // Get the integer ID
+            var i = colorRGB;
+
+            int b = (int)(i >> 32) & 0xFF;
+            int g = (int)(i >> 16) & 0xFF;
+            int r = (int)i & 0xFF;
+
+            IntToFloatColor(255, r, g, b);
+        }
+
         public ColorF(int a, int r, int g, int b)
         {
             IntToFloatColor(a, r, g, b);

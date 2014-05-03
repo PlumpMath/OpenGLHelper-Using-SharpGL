@@ -21,6 +21,8 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -52,16 +54,30 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Buffers\BufferGroup.cs" />
+    <Compile Include="Buffers\OGLBufferId.cs" />
+    <Compile Include="Buffers\IBO.cs" />
+    <Compile Include="Buffers\OGLBufferObject.cs" />
+    <Compile Include="Buffers\VAO.cs" />
+    <Compile Include="Buffers\VBO.cs" />
     <Compile Include="Common\ColorF.cs" />
     <Compile Include="Common\ElementAndTransformation.cs" />
     <Compile Include="Common\ElementTransformations.cs" />
+    <Compile Include="Common\IBuilder.cs" />
     <Compile Include="Common\ObservableLinkedList.cs" />
+    <Compile Include="Common\ObservableLinkedSet.cs" />
     <Compile Include="Common\TransformableBase.cs" />
     <Compile Include="Common\TransformationMatrix.cs" />
+    <Compile Include="Enums.cs" />
+    <Compile Include="Events\EdgeRemovedEvent.cs" />
+    <Compile Include="Events\FaceRemovedEvent.cs" />
+    <Compile Include="Events\MeshChanged.cs" />
     <Compile Include="Events\MeshPixelsChanged.cs" />
     <Compile Include="Events\ModelSelectedEvent.cs" />
+    <Compile Include="Events\VertexRemovedEvent.cs" />
     <Compile Include="Extensions\CommonExtensions.cs" />
     <Compile Include="Extensions\GlmNetExtensions.cs" />
     <Compile Include="IO\IFileModel.cs" />
@@ -69,11 +85,13 @@
     <Compile Include="ManifestResourceLoader.cs" />
     <Compile Include="ModelComponents\Edge.cs" />
     <Compile Include="ModelComponents\Face.cs" />
-    <Compile Include="ModelComponents\MaterialContainableBase.cs" />
     <Compile Include="ModelComponents\Material.cs" />
+    <Compile Include="ModelComponents\MaterialContainableBase.cs" />
     <Compile Include="ModelComponents\Mesh.cs" />
     <Compile Include="ModelComponents\Vertex.cs" />
+    <Compile Include="OGLOverloads\VertexAttribPointer.cs" />
     <Compile Include="Primitives\Axis.cs" />
+    <Compile Include="Primitives\BackgroundPlane.cs" />
     <Compile Include="Primitives\DynamicOGLModel.cs" />
     <Compile Include="SceneElements\LinesBase.cs" />
     <Compile Include="SceneElements\ModelBase.cs" />
@@ -85,20 +103,41 @@
     <Compile Include="Scene\Normal.cs" />
     <Compile Include="Scene\OGLScene.cs" />
     <Compile Include="Scene\Projection.cs" />
-    <Compile Include="Scene\Shaders.cs" />
-    <Compile Include="Shaders\ExtShaderProgram.cs" />
-    <Compile Include="Shaders\ParameterAppliers\JOG.cs" />
-    <Compile Include="Shaders\ParameterInterfaces\IMaterialShaderParameters.cs" />
-    <Compile Include="Shaders\ParameterInterfaces\IMVPNParameters.cs" />
-    <Compile Include="Shaders\ParameterInterfaces\IShaderParameterIds.cs" />
-    <Compile Include="Shaders\ParameterInterfaces\ISingleLightParameters.cs" />
-    <Compile Include="Shaders\ParameterInterfaces\ITransformableParameters.cs" />
-    <Compile Include="Shaders\Parameters\PerPixelParameters.cs" />
-    <Compile Include="Shaders\Parameters\PerPixelTransformableParameters.cs" />
-    <Compile Include="Shaders\Parameters\SimpleShaderParameters.cs" />
-    <Compile Include="Shaders\Parameters\ToonParameters.cs" />
+    <Compile Include="Shaders\ParameterIds.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Shaders\ShaderManagerBase.cs" />
+    <Compile Include="Shaders\ShaderGenerator\BuildLevels\VertexShaderBuilder.cs" />
+    <Compile Include="Shaders\ShaderGenerator\BuildOptions\FunctionBuilder.cs" />
+    <Compile Include="Shaders\ShaderGenerator\BuildOptions\MainFunctionBuilder.cs" />
+    <Compile Include="Shaders\ShaderGenerator\BuildOptions\Mat4Loop.cs" />
+    <Compile Include="Shaders\ShaderGenerator\BuildOptions\VertexNormalBuilder.cs" />
+    <Compile Include="Shaders\ShaderGenerator\BuildOptions\VertexPositionBuilder.cs" />
+    <Compile Include="Shaders\ShaderGenerator\CodeFormatter.cs" />
+    <Compile Include="Shaders\ShaderGenerator\BuildLevels\FragmentShaderBuilder.cs" />
+    <Compile Include="Shaders\ShaderGenerator\Primitives\GLSLQualifier.cs" />
+    <Compile Include="Shaders\ShaderGenerator\Primitives\GLSLType.cs" />
+    <Compile Include="Shaders\ShaderGenerator\Primitives\Variable.cs" />
+    <Compile Include="Shaders\ShaderGenerator\ResourceLoader.cs" />
+    <Compile Include="Shaders\ShaderGenerator\Resources\GlslKeywords.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>GlslKeywords.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Shaders\ShaderGenerator\Resources\ShaderFileSettings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>ShaderFileSettings.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Shaders\ShaderGenerator\ShaderBuilder.cs" />
+    <Compile Include="Shaders\ShaderGenerator\Resources\ShaderValues.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>ShaderValues.resx</DependentUpon>
+    </Compile>
     <Compile Include="Shaders\ShaderProperties.Designer.cs" />
     <Compile Include="VertexAttributes.cs" />
+    <Compile Include="ViewportControl\OGLViewport.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -110,11 +149,26 @@
     <EmbeddedResource Include="Shaders\Scripts\SimpleShader.vert" />
     <EmbeddedResource Include="Shaders\Scripts\Toon.frag" />
     <EmbeddedResource Include="Shaders\Scripts\Toon.vert" />
+    <EmbeddedResource Include="Shaders\Scripts\PerPixelTransArray.frag" />
+    <EmbeddedResource Include="Shaders\Scripts\PerPixelTransArray.vert" />
+    <EmbeddedResource Include="Shaders\Scripts\S1.vert" />
+    <EmbeddedResource Include="Shaders\Scripts\S1.frag" />
+    <EmbeddedResource Include="Shaders\Scripts\BoundingBox.frag" />
+    <EmbeddedResource Include="Shaders\Scripts\BoundingBox.vert" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Shaders\AddNewShader.txt" />
-  </ItemGroup>
-  <ItemGroup>
+    <EmbeddedResource Include="Shaders\ShaderGenerator\Resources\GlslKeywords.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>GlslKeywords.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Shaders\ShaderGenerator\Resources\ShaderFileSettings.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>ShaderFileSettings.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Shaders\ShaderGenerator\Resources\ShaderValues.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>ShaderValues.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
     <EmbeddedResource Include="Shaders\ShaderProperties.resx" />
   </ItemGroup>
   <ItemGroup />
